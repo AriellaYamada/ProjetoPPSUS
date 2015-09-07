@@ -1,10 +1,12 @@
-  $(document).ready(function() {
-    if(isAPIAvailable()) {
-      $('#files').bind('change', handleFileSelect);
-    }
-  });
+  
 
-  function isAPIAvailable() {
+$(document).ready(function() {
+  if(isAPIAvailable()) {
+    $('#files').bind('change', handleFileSelect);
+  }
+});
+
+function isAPIAvailable() {
     // Check for the various File API support.
     if (window.File && window.FileReader && window.FileList && window.Blob) {
       // Great success! All the File APIs are supported.
@@ -27,6 +29,7 @@
     }
   }
 
+  //Seleciona o arquivo csv
   function handleFileSelect(evt) {
     var files = evt.target.files; // FileList object
     var file = files[0];
@@ -38,15 +41,16 @@
     output += ' - FileSize: ' + file.size + ' bytes<br />\n';
     output += ' - LastModified: ' + (file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() : 'n/a') + '<br />\n';
 
-    // read the file contents
-    decisionTree(file);
-
     // post the results
     $('#list').append(output);
+
+    //Leitura do arquivo
+    var data = readFile(file);
+    console.log(data.length);
   }
 
-  //Monta a arvore de decisao
-  function decisionTree(file) {
+  //Le o arquivo csv e retorna um array de objetos
+  function readFile(file) {
     var reader = new FileReader();
     reader.readAsText(file);
     reader.onload = function(event){
@@ -55,67 +59,39 @@
       //Transformando arquivo csv em objetos
       var data = $.csv.toObjects(csv);
 
-      //Configuracao da arvore
-      var decisionTree = new dt.DecisionTree({
-        trainingSet: data,
-        categoryAttr: 'A1b',
-        ignoredAttributes: ['Chave', 'A1a'],
-      });
-      
-      console.log(data.length);
+      return data; 
+    };
 
-      return decisionTree;
+    //Erro de leitura de arquivo, caso aconteca
+    reader.onerror = function(){ alert('Unable to read ' + file.fileName); };
+  }
 
-      //Erro de leitura de arquivo, caso aconteca
-      reader.onerror = function(){ alert('Unable to read ' + file.fileName); };
-    }
+  //Monta a arvore de decisao
+  function decisionTree(data) {
+    //Configuracao da arvore
+    var decisionTree = new dt.DecisionTree({
+      trainingSet: data,
+      categoryAttr: 'A1b',
+      ignoredAttributes: ['Chave', 'A1a'],
+    });
+    return decisionTree;
   }
 
   //Cross validation
-  function crossValidation(tree){
-
-  }
-
-
-
-
-  //Abertura do arquivo
-  function printTable(file) {
-    var reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = function(event){
-      var csv = event.target.result;
-      //Leitura do CSV
-      var data = $.csv.toArrays(csv);
-      var html = '';
-      for(var row in data) {
-        html += '<tr>\r\n';
-        for(var item in data[row]) {
-          html += '<td>' + data[row][item] + '</td>\r\n';
+  function crossValidation(data){
+    var i, j, n = 0;
+      var trainingSet;
+      for(i = 0; i < 10; i++) {
+        //Seleciona 10 registros para a montagem da arvore
+        for(j = 0; j < 10; j++) {
+          trainingSet[j] = data[n];
+          n++;
         }
-        html += '</tr>\r\n';
+        //Montagem da arvore
+        var tree = decisionTree(trainingSet);
+
+        for(var register in data) {
+          console.log(tree.predict(register));
+        }
       }
-
-      $('#contents').html(html);
-
-      //Transformacao do CSV em objetos
-      var obj = $.csv.toObjects(csv);
-
-      //Configuracao da arvore
-      var decisionTree = new dt.DecisionTree({
-      	trainingSet: obj,
-      	categoryAttr: 'A1b',
-      	ignoredAttributes: ['Chave', 'A1a'],
-      });
-
-      var prediction = decisionTree.predict(teste);
-
-      //Impressao do resultado
-      console.log(prediction);
-
-      for(var item in obj) {
-      	console.log("\nChave: " + obj[item].Chave);
-      }
-    };
-    reader.onerror = function(){ alert('Unable to read ' + file.fileName); };
   }
